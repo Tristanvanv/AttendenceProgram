@@ -27,7 +27,12 @@
     .ok{color:#65d69a}
     .err{color:#ff7a7a}
     .status{margin-top:10px;font-size:14px;min-height:18px}
-    @media (max-width:680px){.row{grid-template-columns:1fr}}
+    @media (max-width:680px){
+    .row{grid-template-columns:1fr}
+    .days {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    }
   </style>
 </head>
 <body>
@@ -97,7 +102,7 @@
     const offsetSel = $('#offset');
     const dayNames = ['ma','di','wo','do','vr','za','zo'];
 
-    // 1) Bouw 7 checkboxes
+    // 7 checkboxes
     function buildDays() {
       daysEl.innerHTML = '';
       for (let i = 1; i <= 7; i++) {
