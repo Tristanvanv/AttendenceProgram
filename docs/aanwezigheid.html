@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wie-eet-er-mee — Aanwezigheid beheren</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#0f1217; --card:#121722; --text:#e7ebf4; --muted:#a7b0c0; --accent:#d8d262; --bord:#1f232a; }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;font-family:"Kumbh Sans",system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:820px;margin:0 auto;padding:16px 20px 40px}
+    header{display:flex;align-items:center;gap:12px;padding:16px 0 8px}
+    header h1{font-size:20px;font-weight:600;margin:0}
+    .card{background:var(--card);border:1px solid var(--bord);border-radius:14px;padding:16px;margin-top:14px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{font-weight:600;font-size:14px;margin-bottom:6px;display:block;color:var(--muted)}
+    select,button{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--bord);background:#0c1016;color:var(--text);font-size:14px}
+    .days{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px}
+    .day{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--bord);border-radius:12px;background:#0c1016;justify-content:center}
+    .actions{display:flex;gap:12px;justify-content:flex-end;margin-top:14px}
+    .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--bord);cursor:pointer}
+    .primary{background:var(--accent);color:#1b1e05;border:none;font-weight:600}
+    .muted{background:transparent;color:var(--muted)}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .ok{color:#65d69a}
+    .err{color:#ff7a7a}
+    .status{margin-top:10px;font-size:14px;min-height:18px}
+    @media (max-width:680px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Aanwezigheid beheren</h1>
+    </header>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label for="household">Huishouden</label>
+          <select id="household"></select>
+        </div>
+        <div>
+          <label for="person">Persoon</label>
+          <select id="person"></select>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="offset">Week</label>
+          <select id="offset">
+            <option value="0">Deze week</option>
+            <option value="1">Volgende week</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <div class="hint">Ma=1 … Zo=7 • Kies wie aanwezig is op welke dagen</div>
+        </div>
+      </div>
+
+      <div class="days" id="days">
+        <!-- 7 checkboxes -->
+      </div>
+
+      <div class="actions">
+        <button class="btn muted" id="loadCurrent">Huidige stand laden</button>
+        <button class="btn primary" id="save">Opslaan</button>
+      </div>
+
+      <div class="status" id="status"></div>
+      <div class="hint">Na opslaan kun je de kalender openen om het resultaat te zien.</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <button class="btn" id="openCalendar">Open kalender</button>
+          <div class="hint">Opent <code>Wie-eet-er-mee</code> kalender voor het gekozen huishouden.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ✏️ VUL JE RENDER-URL HIER IN (zonder trailing slash)
+    const API_BASE = 'https://attendenceprogram.onrender.com/';
+
+    const $ = (s) => document.querySelector(s);
+    const daysEl = $('#days');
+    const statusEl = $('#status');
+    const householdSel = $('#household');
+    const personSel = $('#person');
+    const offsetSel = $('#offset');
+    const dayNames = ['ma','di','wo','do','vr','za','zo'];
+
+    // 1) Bouw 7 checkboxes
+    function buildDays() {
+      daysEl.innerHTML = '';
+      for (let i = 1; i <= 7; i++) {
+        const id = `d${i}`;
+        const wrap = document.createElement('label');
+        wrap.className = 'day';
+        wrap.innerHTML = `<input type="checkbox" id="${id}" value="${i}"/><span>${dayNames[i-1]}</span>`;
+        daysEl.appendChild(wrap);
+      }
+    }
+
+    // load data to fill
+    async function loadSchema() {
+      const res = await fetch(`${API_BASE}/presence`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Kan presence niet laden');
+      const data = await res.json();
+
+      // fill households
+      householdSel.innerHTML = '';
+      for (const [hid, h] of Object.entries(data.households || {})) {
+        const opt = document.createElement('option');
+        opt.value = hid; opt.textContent = h.name || hid;
+        householdSel.appendChild(opt);
+      }
+      // fill people
+      personSel.innerHTML = '';
+      for (const [pid, p] of Object.entries(data.people || {})) {
+        const opt = document.createElement('option');
+        opt.value = pid; opt.textContent = p.name || pid;
+        personSel.appendChild(opt);
+      }
+    }
+
+    // preload days
+    async function preloadDays() {
+      const hid = householdSel.value;
+      const pid = personSel.value;
+      const off = String(offsetSel.value);
+      if (!hid || !pid) return;
+
+      const res = await fetch(`${API_BASE}/presence`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // uncheck all
+      for (let i = 1; i <= 7; i++) $('#d'+i).checked = false;
+
+      const byOffset = (data.schedule && data.schedule.byOffset) ? data.schedule.byOffset : {};
+      const offsetObj = byOffset[off] || {};
+      for (let day = 1; day <= 7; day++) {
+        const dayObj = offsetObj[String(day)] || {};
+        const list = dayObj[hid] || [];
+        if (Array.isArray(list) && list.includes(pid)) {
+          $('#d'+day).checked = true;
+        }
+      }
+    }
+
+    // to API
+    async function save() {
+      const hid = householdSel.value;
+      const pid = personSel.value;
+      const off = Number(offsetSel.value);
+      const days = [...document.querySelectorAll('#days input[type=checkbox]:checked')].map(i => Number(i.value));
+
+      status('Bezig met opslaan…', 'muted');
+      const res = await fetch(`${API_BASE}/presence/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId: hid, personId: pid, weekOffset: off, days })
+      });
+      if (!res.ok) {
+        let msg = 'Opslaan mislukt';
+        try { const j = await res.json(); if (j && j.error) msg += `: ${j.error}`; } catch {}
+        status(msg, 'err');
+        return;
+      }
+      status('Opgeslagen ✔', 'ok');
+    }
+
+    function status(msg, cls) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + (cls || '');
+    }
+
+    // open kalender
+    function openCalendar() {
+      const hid = householdSel.value || 'yvonne';
+      const url = `https://tristanvanv.github.io/Wie-eet-er-mee/index.html`;
+      window.location.href = url;
+    }
+
+    // Init
+    buildDays();
+    loadSchema().then(preloadDays).catch(e => status(e.message, 'err'));
+    householdSel.addEventListener('change', preloadDays);
+    personSel.addEventListener('change', preloadDays);
+    offsetSel.addEventListener('change', preloadDays);
+    $('#loadCurrent').addEventListener('click', (e)=>{ e.preventDefault(); preloadDays(); });
+    $('#save').addEventListener('click', (e)=>{ e.preventDefault(); save(); });
+    $('#openCalendar').addEventListener('click', (e)=>{ e.preventDefault(); openCalendar(); });
+  </script>
+</body>
+</html>
