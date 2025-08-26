@@ -12,6 +12,7 @@ namespace AttendenceProgram.Services
         private readonly object _lock = new();
         private readonly string? _conn;
         private readonly bool _useDb;
+        public string Mode => _useDb ? "db" : "file";
         private readonly JsonSerializerOptions _opt = new()
         
         {
@@ -32,19 +33,19 @@ namespace AttendenceProgram.Services
 
             if (_useDb)
             {
-                EnsureTable();
-                var loaded = DbLoad();
-                if (loaded != null)
+                try
                 {
-                    _data = loaded;
+                    EnsureTable();
+                    var loaded = DbLoad();
+                    _data = loaded ?? PresenceData.CreateSkeleton();
+                    if (loaded != null) DbSave();
                 }
-                else
+                catch
                 {
-                    _data = PresenceData.CreateSkeleton();
-                    DbSave(); // eerste seed
+                    _useDb = false;
                 }
             }
-            else
+            if (!_useDb)
             {
                 if (File.Exists(_file))
                 {
@@ -54,7 +55,7 @@ namespace AttendenceProgram.Services
                 else
                 {
                     _data = PresenceData.CreateSkeleton();
-                    FileSave();
+                    File.WriteAllText(_file, JsonSerializer.Serialize(_data, _opt));
                 }
             }
         }

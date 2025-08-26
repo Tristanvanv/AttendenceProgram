@@ -24,11 +24,17 @@ builder.Services.AddSingleton<PresenceStore>();
 
 var app = builder.Build();
 
+
+
 app.UseSwagger();
 
 app.UseSwaggerUI();
 
 app.UseCors("Pages");
+
+app.MapGet("/health", (AttendenceProgram.Services.PresenceStore s) =>
+Results.Json(new { ok = true, mode = s.Mode })
+);
 
 app.UseHttpsRedirection();
 
