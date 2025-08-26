@@ -5,6 +5,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+
+var origins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 //CORS
 builder.Services.AddCors(options =>
 {
@@ -14,8 +18,6 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()    
     );
 });
-
-builder.Services.AddControllers();
 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<PresenceStore>();
