@@ -9,23 +9,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Pages", policy =>
-    {
-        var origins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? "")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (origins.Length > 0)
-        {
-            policy.WithOrigins(origins)
-                  .WithMethods("GET", "POST", "OPTIONS")
-                  .AllowAnyHeader();
-        }
-        else
-        {
-            
-            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-        }
-    });
+        policy.WithOrigins("https://tristanvanv.github.io")   
+              .AllowAnyHeader()
+              .AllowAnyMethod()    
+    );
 });
+
+builder.Services.AddControllers();
 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<PresenceStore>();
